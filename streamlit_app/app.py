@@ -208,4 +208,3 @@ with tab2:
         st.error(
             "outputs/results.csv not found."
         )
-```
