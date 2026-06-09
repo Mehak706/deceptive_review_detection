@@ -1,65 +1,128 @@
-# Exact Path: src/nlp_pipeline.py
-import pandas as pd # Import pandas for processing tabular data
-import os # Import os for system-independent file pathing
-import joblib # Import joblib to save and load serialized Python objects
-from sklearn.feature_extraction.text import TfidfVectorizer # Import TF-IDF transformer to convert text to numbers
-from sklearn.model_selection import train_test_split # Import train_test_split to handle data partitioning
+import os
+import joblib
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
-def build_nlp_features():
-    """
-    Transforms clean text strings into a numerical matrix using TF-IDF vectorization,
-    encodes target labels, splits the data, and saves the fitted vectorizer object.
-    
-    Linguistic Explanation of TF-IDF:
-    TF-IDF stands for Term Frequency-Inverse Document Frequency. It evaluates how 
-    frequently a word appears in a single review (Term Frequency) and balances it against 
-    how often that word shows up across all reviews in the dataset (Inverse Document Frequency). 
-    This down-weights common, non-distinctive terms (like 'the' or 'university') and highlights 
-    more informative keywords unique to specific review patterns.
-    
-    Why max_features=5000?
-    Restricting the matrix to the top 5,000 most meaningful words prevents the vocabulary array 
-    from growing too large. This helps prevent model overfitting, reduces memory consumption, 
-    and keeps processing speeds fast on standard laptop hardware.
-    """
-    # Define paths for data input and model output
-    input_path = os.path.join("data", "processed", "processed_reviews.csv")
-    vectorizer_output = os.path.join("models", "tfidf_vectorizer.pkl")
-    
-    # Load the processed CSV dataset into a pandas DataFrame
-    df = pd.read_csv(input_path)
-    
-    # Ensure there are no null values in the cleaned text column by replacing them with empty strings
-    df['cleaned_review'] = df['cleaned_review'].fillna("")
-    
-    # Extract features (X) and target labels (y)
-    X_text = df['cleaned_review']
-    # Encode target labels: set truthful reviews to 1 and deceptive reviews to 0
-    y_labels = df['deceptive_label'].apply(lambda val: 1 if str(val).strip().lower() == 'truthful' else 0)
-    
-    print("[*] Building the 5,000-feature TF-IDF text vector space matrix...")
-    # Initialize the TF-IDF vectorizer configuration
-    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
-    
-    # Fit the vectorizer on the text data and transform it into a numerical feature matrix
-    X_transformed = vectorizer.fit_transform(X_text)
-    
-    print("[*] Splitting dataset into training (80%) and testing (20%) sets...")
-    # Split the dataset into train and test groups using a fixed random state for reproducible splits
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_transformed, y_labels, test_size=0.20, random_state=42, stratify=y_labels
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix,
+    classification_report
+)
+
+from nlp_pipeline import build_nlp_features
+
+
+def execute_model_suite():
+
+    X_train, X_test, y_train, y_test, vectorizer = build_nlp_features()
+
+    models_pool = {
+        "Logistic Regression": LogisticRegression(
+            max_iter=2000,
+            class_weight="balanced"
+        ),
+
+        "Linear SVM (Best NLP Model)": LinearSVC(),
+
+        "Multinomial Naive Bayes": MultinomialNB(alpha=1.0)
+    }
+
+    performance_records = {}
+
+    chart_dir = os.path.join("outputs", "charts")
+    os.makedirs(chart_dir, exist_ok=True)
+
+    for name, model in models_pool.items():
+
+        print(f"\n[*] Training: {name}")
+
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_test)
+
+        acc = accuracy_score(y_test, predictions)
+        prec = precision_score(y_test, predictions, average="macro")
+        rec = recall_score(y_test, predictions, average="macro")
+        f1 = f1_score(y_test, predictions, average="macro")
+
+        performance_records[name] = {
+            "Accuracy": acc,
+            "Precision": prec,
+            "Recall": rec,
+            "F1_Score": f1,
+            "Model": model
+        }
+
+        print("\n", classification_report(
+            y_test,
+            predictions,
+            target_names=["Deceptive", "Genuine"]
+        ))
+
+        cm = confusion_matrix(y_test, predictions)
+
+        plt.figure(figsize=(5, 4))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=["Deceptive", "Genuine"],
+            yticklabels=["Deceptive", "Genuine"]
+        )
+        plt.title(f"Confusion Matrix: {name}")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+
+        save_path = os.path.join(
+            chart_dir,
+            f"cm_{name.lower().replace(' ', '_')}.png"
+        )
+
+        plt.savefig(save_path, bbox_inches="tight")
+        plt.close()
+
+    # Summary table
+    print("\n" + "=" * 60)
+    print("MODEL PERFORMANCE COMPARISON")
+    print("=" * 60)
+
+    summary = []
+
+    for name, m in performance_records.items():
+        summary.append({
+            "Model": name,
+            "Accuracy": round(m["Accuracy"], 4),
+            "Precision": round(m["Precision"], 4),
+            "Recall": round(m["Recall"], 4),
+            "F1": round(m["F1_Score"], 4),
+        })
+
+    print(pd.DataFrame(summary).to_string(index=False))
+
+    # Best model selection
+    best_model_name = max(
+        performance_records,
+        key=lambda x: performance_records[x]["F1_Score"]
     )
-    
-    # Ensure the models output directory exists; create it if missing
-    os.makedirs(os.path.dirname(vectorizer_output), exist_ok=True)
-    # Save the fitted vectorizer object to file for future deployment and inference tasks
-    joblib.dump(vectorizer, vectorizer_output)
-    print(f"[+] TF-IDF Vectorizer successfully saved to file: {vectorizer_output}")
-    
-    # Return the split dataset components along with the vectorizer object
-    return X_train, X_test, y_train, y_test, vectorizer
 
-# Check if the script is run directly from the terminal
+    best_model = performance_records[best_model_name]["Model"]
+
+    model_path = os.path.join("models", "best_model.pkl")
+    joblib.dump(best_model, model_path)
+
+    print("\n" + "#" * 60)
+    print(f"BEST MODEL: {best_model_name}")
+    print(f"SAVED TO: {model_path}")
+    print("#" * 60)
+
+
 if __name__ == "__main__":
-    # Run the NLP feature extraction pipeline
-    build_nlp_features()
+    execute_model_suite()
