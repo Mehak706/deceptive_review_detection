@@ -81,8 +81,10 @@ with tab1:
                     0
                 )
 
-            except:
+           except Exception as e:
 
+                st.error(f"Prediction Error: {e}")
+            
                 prediction = "Unavailable"
                 confidence = 0
 
@@ -96,10 +98,12 @@ with tab1:
                     credibility_score
                 )
 
-            except:
+            except Exception as e:
 
-                credibility_score = 0
-                credibility_label = "Unknown"
+                    st.error(f"Credibility Error: {e}")
+                
+                    credibility_score = 0
+                    credibility_label = "Unknown"
 
             col1, col2, col3, col4 = st.columns(4)
 
