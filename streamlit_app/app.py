@@ -67,27 +67,26 @@ with tab1:
             st.warning("Please enter a review.")
         else:
 
-            try:
+         try:
 
-                result = run_single_inference(review_text)
-
-                prediction = result.get(
-                    "prediction",
-                    "Unknown"
-                )
-
-                confidence = result.get(
-                    "confidence",
-                    0
-                )
-
-           except Exception as e:
-
-                st.error(f"Prediction Error: {e}")
-            
-                prediction = "Unavailable"
-                confidence = 0
-
+            result = run_single_inference(review_text)
+        
+            prediction = result.get(
+                "prediction",
+                "Unknown"
+            )
+        
+            confidence = result.get(
+                "confidence",
+                0
+            )
+        
+        except Exception as e:
+        
+            st.error(f"Prediction Error: {e}")
+        
+            prediction = "Unavailable"
+            confidence = 0
             try:
 
                 credibility_score = compute_credibility_index(
