@@ -61,3 +61,4 @@ if __name__ == "__main__":
     print(f"Prediction:  {inference_result['prediction']}")
     print(f"Confidence:  {inference_result['confidence'] * 100.0:.2f}%")
     print("="*50 + "\n")
+print(result)
