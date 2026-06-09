@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 # Import project functions
 try:
     from predict import run_single_inference
+    st.success("Predict module loaded")
 except Exception as e:
     st.error(f"Predict Import Error: {e}")
 
