@@ -113,7 +113,17 @@ with tab1:
                         ) * 100
                     )
 
-                    credibility_score = confidence
+                    # ==================================================
+                    # FIXED CREDIBILITY LOGIC
+                    # ==================================================
+
+                    if prediction.lower() == "genuine":
+                        credibility_score = confidence
+                    else:
+                        credibility_score = max(
+                            0,
+                            100 - confidence
+                        )
 
                     credibility_label = (
                         assign_credibility_label(
