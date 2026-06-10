@@ -20,6 +20,8 @@ def run_single_inference(raw_review_string):
     # Load the saved model and vectorizer objects from file
     best_model = joblib.load(model_path)
     tfidf_vectorizer = joblib.load(vectorizer_path)
+    print("Model:", best_model)
+    print("Classes:", best_model.classes_)
     
     # Process the raw text string through our standardized cleaning pipeline
     clean_text = clean_text_core(raw_review_string)
